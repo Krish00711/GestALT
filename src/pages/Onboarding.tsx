@@ -61,7 +61,7 @@ const defaultUserData: UserData = {
   problem_detection_score: 0
 };
 
-const clipTransition = { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const };
+const clipTransition = { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const };
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -146,8 +146,6 @@ function IdentityDrop({ onComplete }: { onComplete: (payload: Pick<UserData, 'na
   const [emailDropped, setEmailDropped] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-
-  const canContinue = name.trim().length > 0 && email.trim().length > 0;
 
   const detectHover = (x: number, y: number) => {
     const overName = pointInRect(x, y, nameZoneRef.current?.getBoundingClientRect());
@@ -237,24 +235,22 @@ function IdentityDrop({ onComplete }: { onComplete: (payload: Pick<UserData, 'na
           </div>
         </div>
 
-        {canContinue && (
-          <>
-            <motion.div
-              initial={{ clipPath: 'inset(0 100% 0 0)' }}
-              animate={{ clipPath: 'inset(0 0 0 0)' }}
-              className="mt-8 border border-[#2A3261] bg-[#111733] px-8 py-5 text-center"
-            >
-              <div className="font-fraunces text-[32px] text-white">{name}</div>
-              <div className="mt-1 font-jetbrains text-[11px] tracking-[0.2em] text-[#7E86C8]">GESTALT LEARNER</div>
-            </motion.div>
-            <button
-              onClick={() => onComplete({ name: name.trim(), email: email.trim() })}
-              className="mt-6 border border-[#5A60A8] bg-[#6366F1] px-6 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
-            >
-              CONTINUE
-            </button>
-          </>
+        {(name.trim().length > 0 || email.trim().length > 0) && (
+          <motion.div
+            initial={{ clipPath: 'inset(0 100% 0 0)' }}
+            animate={{ clipPath: 'inset(0 0 0 0)' }}
+            className="mt-8 border border-[#2A3261] bg-[#111733] px-8 py-5 text-center"
+          >
+            <div className="font-fraunces text-[32px] text-white">{name || 'GESTALT LEARNER'}</div>
+            <div className="mt-1 font-jetbrains text-[11px] tracking-[0.2em] text-[#7E86C8]">GESTALT LEARNER</div>
+          </motion.div>
         )}
+        <button
+          onClick={() => onComplete({ name: name.trim(), email: email.trim() })}
+          className="mt-6 border border-[#5A60A8] bg-[#6366F1] px-6 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
+        >
+          CONTINUE
+        </button>
       </div>
     </ScreenFrame>
   );
@@ -273,7 +269,7 @@ const eras = [
 
 function DesignEraSelector({ onComplete }: { onComplete: (payload: Pick<UserData, 'design_era'>) => void }) {
   const railRef = useRef<HTMLDivElement | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState(3);
+  const [selectedIndex, setSelectedIndex] = useState(6);
   const [handleX, setHandleX] = useState(0);
 
   useEffect(() => {
@@ -311,7 +307,7 @@ function DesignEraSelector({ onComplete }: { onComplete: (payload: Pick<UserData
             }}
             animate={{ clipPath: 'inset(0 0 0 0)' }}
             initial={{ clipPath: 'inset(0 100% 0 0)' }}
-            transition={{ duration: 0.35 }}
+            transition={{ duration: 0.2 }}
           />
 
           <div ref={railRef} className="relative mx-auto mt-20 h-28 w-full max-w-[980px] overflow-x-auto">
@@ -383,6 +379,7 @@ const roles = [
 
 function RoleConstellation({ onComplete }: { onComplete: (payload: Pick<UserData, 'role'>) => void }) {
   const [selected, setSelected] = useState<string>('');
+  const selectedRole = selected || 'Designer';
 
   return (
     <ScreenFrame id={3}>
@@ -422,21 +419,19 @@ function RoleConstellation({ onComplete }: { onComplete: (payload: Pick<UserData
           })}
         </div>
 
-        {selected && (
-          <motion.div
-            initial={{ clipPath: 'inset(0 100% 0 0)' }}
-            animate={{ clipPath: 'inset(0 0 0 0)' }}
-            className="mt-2 text-center"
+        <motion.div
+          initial={{ clipPath: 'inset(0 100% 0 0)' }}
+          animate={{ clipPath: 'inset(0 0 0 0)' }}
+          className="mt-2 text-center"
+        >
+          <p className="font-inter text-[16px] text-[#E0E0FF]">{roles.find((r) => r.id === selected)?.desc || 'You think in systems and feel in pixels.'}</p>
+          <button
+            onClick={() => onComplete({ role: selectedRole })}
+            className="mt-6 border border-[#5A60A8] bg-[#6366F1] px-6 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
           >
-            <p className="font-inter text-[16px] text-[#E0E0FF]">{roles.find((r) => r.id === selected)?.desc}</p>
-            <button
-              onClick={() => onComplete({ role: selected })}
-              className="mt-6 border border-[#5A60A8] bg-[#6366F1] px-6 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
-            >
-              CONTINUE
-            </button>
-          </motion.div>
-        )}
+            CONTINUE
+          </button>
+        </motion.div>
       </div>
     </ScreenFrame>
   );
@@ -448,17 +443,7 @@ function SkillHorizon({ onComplete }: { onComplete: (payload: { skillLevels: Ski
   const sceneRef = useRef<HTMLDivElement | null>(null);
   const [sun, setSun] = useState({ x: 60, y: 180 });
   const [activeSkill, setActiveSkill] = useState<SkillKey>('gestalt');
-  const [touched, setTouched] = useState<Record<SkillKey, boolean>>({
-    gestalt: false,
-    cognitive: false,
-    typography: false,
-    color: false,
-    interaction: false,
-    strategy: false
-  });
   const [skills, setSkills] = useState<SkillLevels>(initialSkillLevels);
-
-  const canContinue = skillKeys.every((k) => touched[k]);
 
   const updateSun = (pointX: number, pointY: number) => {
     const rect = sceneRef.current?.getBoundingClientRect();
@@ -472,7 +457,6 @@ function SkillHorizon({ onComplete }: { onComplete: (payload: { skillLevels: Ski
     setActiveSkill(skill);
     const value = clamp(Math.round((1 - localY / Math.max(1, rect.height)) * 100), 0, 100);
 
-    setTouched((prev) => ({ ...prev, [skill]: true }));
     setSkills((prev) => ({ ...prev, [skill]: value }));
   };
 
@@ -534,9 +518,9 @@ function SkillHorizon({ onComplete }: { onComplete: (payload: { skillLevels: Ski
               ))}
             </div>
             <button
-              disabled={!canContinue}
+              disabled={false}
               onClick={() => onComplete({ skillLevels: skills })}
-              className="mt-6 w-full border border-[#5A60A8] bg-[#6366F1] px-4 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white disabled:opacity-40"
+              className="mt-6 w-full border border-[#5A60A8] bg-[#6366F1] px-4 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
             >
               LOCK SKILL HORIZON
             </button>
@@ -627,7 +611,7 @@ function InstinctCanvas({
 
           <div className="border border-[#28305D] bg-[#111733] p-3">
             <div className="font-jetbrains text-[11px] tracking-[0.16em] text-[#7E86C8]">CAPTURE PANEL</div>
-            {placed.length >= 3 && !captured && (
+            {!captured && (
               <button
                 onClick={() => setCaptured(true)}
                 className="mt-4 w-full border border-[#5A60A8] bg-[#6366F1] px-3 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
@@ -675,18 +659,11 @@ const palettes = [
 ];
 
 function ColourFingerprint({ onComplete }: { onComplete: (payload: Pick<UserData, 'colour_personality'>) => void }) {
-  const [, setDwell] = useState<number[]>(Array.from({ length: palettes.length }, () => 0));
+  const [dwell, setDwell] = useState<number[]>(Array.from({ length: palettes.length }, () => 0));
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [hoverStart, setHoverStart] = useState<number>(0);
   const [revealed, setRevealed] = useState(false);
   const [winner, setWinner] = useState(0);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      reveal();
-    }, 12000);
-    return () => clearTimeout(timer);
-  }, []);
 
   const applyHoverDelta = () => {
     if (hoveredIndex === null) return;
@@ -700,6 +677,11 @@ function ColourFingerprint({ onComplete }: { onComplete: (payload: Pick<UserData
       if (hoveredIndex !== null) {
         const delta = Date.now() - hoverStart;
         merged = prev.map((v, i) => (i === hoveredIndex ? v + delta : v));
+      }
+      const totalDwell = merged.reduce((acc, v) => acc + v, 0);
+      if (totalDwell === 0) {
+        setWinner(3);
+        return merged;
       }
       let maxIdx = 0;
       merged.forEach((value, idx) => {
@@ -740,7 +722,7 @@ function ColourFingerprint({ onComplete }: { onComplete: (payload: Pick<UserData
                 }}
                 className="relative overflow-hidden"
                 animate={{ height: revealed ? (expanded ? '60vh' : 'calc(40vh / 7)') : '12.5vh' }}
-                transition={{ duration: 0.4 }}
+                transition={{ duration: 0.2 }}
               >
                 <div
                   className="h-full w-full"
@@ -779,7 +761,11 @@ function ColourFingerprint({ onComplete }: { onComplete: (payload: Pick<UserData
           )}
           {revealed && (
             <button
-              onClick={() => onComplete({ colour_personality: palettes[winner].name })}
+              onClick={() =>
+                onComplete({
+                  colour_personality: dwell.reduce((acc, v) => acc + v, 0) === 0 ? 'Dark Minimal' : palettes[winner].name
+                })
+              }
               className="border border-[#5A60A8] bg-[#6366F1] px-5 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
             >
               CONTINUE
@@ -794,8 +780,6 @@ function ColourFingerprint({ onComplete }: { onComplete: (payload: Pick<UserData
 function SpeedCraftDial({ onComplete }: { onComplete: (payload: Pick<UserData, 'work_style'>) => void }) {
   const dialRef = useRef<HTMLDivElement | null>(null);
   const [value, setValue] = useState(50);
-  const [touched, setTouched] = useState(false);
-
   const updateFromPoint = (x: number, y: number) => {
     const rect = dialRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -804,7 +788,6 @@ function SpeedCraftDial({ onComplete }: { onComplete: (payload: Pick<UserData, '
     const angle = Math.atan2(y - centerY, x - centerX);
     const mapped = clamp(Math.round(((Math.cos(angle) + 1) / 2) * 100), 0, 100);
     setValue(mapped);
-    setTouched(true);
   };
 
   const r = 170;
@@ -852,9 +835,9 @@ function SpeedCraftDial({ onComplete }: { onComplete: (payload: Pick<UserData, '
         </div>
 
         <button
-          disabled={!touched}
+          disabled={false}
           onClick={() => onComplete({ work_style: value })}
-          className="mt-6 border border-[#5A60A8] bg-[#6366F1] px-6 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white disabled:opacity-40"
+          className="mt-6 border border-[#5A60A8] bg-[#6366F1] px-6 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
         >
           LOCK STYLE
         </button>
@@ -952,13 +935,12 @@ function BrokenUIGutCheck({
         <div className="flex justify-center gap-3 pb-2">
           {!revealing && !revealed && (
             <button
-              disabled={selected.length === 0}
+              disabled={false}
               onClick={() => {
-                setRevealing(true);
+                setRevealing(false);
                 setRevealed(true);
-                setTimeout(() => setRevealing(false), 1500);
               }}
-              className="border border-[#5A60A8] bg-[#6366F1] px-6 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white disabled:opacity-40"
+              className="border border-[#5A60A8] bg-[#6366F1] px-6 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
             >
               THAT'S WHAT I SEE
             </button>
@@ -985,14 +967,6 @@ const goals = [
 
 function GoalVault({ onComplete }: { onComplete: (payload: Pick<UserData, 'goal'>) => void }) {
   const [selected, setSelected] = useState<string>('');
-  const [canContinue, setCanContinue] = useState(false);
-
-  useEffect(() => {
-    if (!selected) return;
-    setCanContinue(false);
-    const t = setTimeout(() => setCanContinue(true), 3000);
-    return () => clearTimeout(t);
-  }, [selected]);
 
   return (
     <ScreenFrame id={9}>
@@ -1031,16 +1005,14 @@ function GoalVault({ onComplete }: { onComplete: (payload: Pick<UserData, 'goal'
           })}
         </div>
 
-        {selected && canContinue && (
-          <div className="mt-4 flex justify-center">
-            <button
-              onClick={() => onComplete({ goal: selected })}
-              className="border border-[#5A60A8] bg-[#6366F1] px-6 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
-            >
-              CONTINUE
-            </button>
-          </div>
-        )}
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={() => onComplete({ goal: selected || 'JUST LEARN' })}
+            className="border border-[#5A60A8] bg-[#6366F1] px-6 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
+          >
+            CONTINUE
+          </button>
+        </div>
       </div>
     </ScreenFrame>
   );
@@ -1122,9 +1094,9 @@ function TimeRitual({
             <div className="mt-1 font-inter text-[14px] text-[#E0E0FF]">{streakText}</div>
           </div>
           <button
-            disabled={paintedHours === 0}
+            disabled={false}
             onClick={() => onComplete({ availability_pattern: Array.from(painted), streak_goal: streakGoal })}
-            className="border border-[#5A60A8] bg-[#6366F1] px-5 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white disabled:opacity-40"
+            className="border border-[#5A60A8] bg-[#6366F1] px-5 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
           >
             SET MY RITUAL
           </button>
@@ -1149,8 +1121,6 @@ function FirstPrinciple({ onComplete }: { onComplete: (payload: Pick<UserData, '
     };
   }, []);
 
-  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-
   return (
     <ScreenFrame id={11}>
       <div className="flex h-full flex-col items-center justify-center px-4">
@@ -1171,14 +1141,12 @@ function FirstPrinciple({ onComplete }: { onComplete: (payload: Pick<UserData, '
             style={{ textShadow: '0 0 20px rgba(99,102,241,0.4)' }}
           />
 
-          {wordCount >= 3 && (
-            <button
-              onClick={() => onComplete({ design_philosophy: text })}
-              className="mt-4 border border-[#5A60A8] bg-[#6366F1] px-5 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
-            >
-              THAT'S MY BELIEF -
-            </button>
-          )}
+          <button
+            onClick={() => onComplete({ design_philosophy: text })}
+            className="mt-4 border border-[#5A60A8] bg-[#6366F1] px-5 py-2 font-jetbrains text-[12px] tracking-[0.16em] text-white"
+          >
+            THAT'S MY BELIEF →
+          </button>
         </div>
       </div>
     </ScreenFrame>
@@ -1198,7 +1166,7 @@ function SignalTransmission({
   const [wipe, setWipe] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setReady(true), 3000);
+    const t = setTimeout(() => setReady(true), 1500);
     return () => clearTimeout(t);
   }, []);
 
@@ -1228,7 +1196,7 @@ function SignalTransmission({
         <motion.div
           initial={{ clipPath: 'inset(0 100% 0 0)' }}
           animate={{ clipPath: 'inset(0 0 0 0)' }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.3 }}
           className="mt-2 border border-[#6366F1] bg-[#111733] px-3 py-1 font-jetbrains text-[12px] tracking-[0.16em] text-[#6366F1]"
         >
           {userData.role || 'LEARNER'}
@@ -1246,7 +1214,7 @@ function SignalTransmission({
                   className="h-full bg-[#6366F1]"
                   initial={{ clipPath: 'inset(0 100% 0 0)' }}
                   animate={{ clipPath: 'inset(0 0 0 0)', width: `${skillLevels[key]}%` }}
-                  transition={{ delay: 1 + idx * 0.12, duration: 0.4 }}
+                  transition={{ delay: 0.5 + idx * 0.06, duration: 0.2 }}
                 />
               </div>
             </div>
@@ -1256,7 +1224,7 @@ function SignalTransmission({
         <motion.div
           initial={{ clipPath: 'inset(0 100% 0 0)' }}
           animate={{ clipPath: 'inset(0 0 0 0)' }}
-          transition={{ delay: 1.8 }}
+          transition={{ delay: 0.9 }}
           className="mt-6 max-w-[620px] font-fraunces text-[20px] italic text-[#E0E0FF]"
         >
           {userData.design_philosophy}
@@ -1265,14 +1233,14 @@ function SignalTransmission({
         <motion.div
           initial={{ clipPath: 'inset(0 100% 0 0)' }}
           animate={{ clipPath: 'inset(0 0 0 0)' }}
-          transition={{ delay: 2.6 }}
+          transition={{ delay: 1.3 }}
           className="mt-6 h-[1px] w-full max-w-[700px] bg-[#6366F1]"
         />
 
         <motion.div
           initial={{ clipPath: 'inset(0 100% 0 0)' }}
           animate={{ clipPath: 'inset(0 0 0 0)' }}
-          transition={{ delay: 3 }}
+          transition={{ delay: 1.5 }}
           className="mt-5 font-jetbrains text-[11px] tracking-[0.2em] text-[#6366F1]"
         >
           TRANSMISSION COMPLETE
@@ -1292,7 +1260,7 @@ function SignalTransmission({
             className="absolute inset-0 z-20 bg-[#6366F1]"
             initial={{ clipPath: 'inset(0 100% 0 0)' }}
             animate={{ clipPath: 'inset(0 0 0 0)' }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.2 }}
           />
         )}
       </div>
@@ -1414,7 +1382,7 @@ export default function Onboarding() {
         <motion.div
           className="h-full bg-gradient-to-r from-[#6366F1] to-[#38BDF8]"
           animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.35 }}
+          transition={{ duration: 0.2 }}
         />
       </div>
 
