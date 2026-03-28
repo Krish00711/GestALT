@@ -1,214 +1,639 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Box } from 'lucide-react';
-import LearningHarness from '@/components/ui/LearningHarness';
-import { useLearning } from '@/engine/LearningContext';
-import { useAntiFrustration } from '@/hooks/useAntiFrustration';
+import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
-export default function ZIndexLayering() {
-  return (
-    <LearningHarness moduleId="z-index" maxLevels={3}>
-      <ZIndexLogic />
-    </LearningHarness>
-  );
+interface Layer {
+  id: string;
+  name: string;
+  color: string;
+  borderColor: string;
+  correctZ: number;
+  currentZ: number;
 }
 
-function ZIndexLogic() {
-  const { currentLevel, advanceLevel, recordMistake, phase } = useLearning();
-  useAntiFrustration(12000);
+interface Challenge {
+  id: number;
+  title: string;
+  description: string;
+  layers: Layer[];
+}
 
-  const [rotationX, setRotationX] = useState(60);
-  const [rotationZ, setRotationZ] = useState(45);
-  const [isDragging, setIsDragging] = useState(false);
+const challenges: Challenge[] = [
+  {
+    id: 1,
+    title: 'Basic Modal Stack',
+    description: 'A modal should always appear above the background. Set correct z-index values.',
+    layers: [
+      { id: 'bg', name: 'BG', color: '#1a1f3a', borderColor: '#2a3060', correctZ: 1, currentZ: 10 },
+      { id: 'modal', name: 'CORE MODAL', color: 'rgba(99,66,241,0.8)', borderColor: '#8b5cf6', correctZ: 10, currentZ: 5 },
+    ],
+  },
+  {
+    id: 2,
+    title: 'Tooltip Depth',
+    description: 'Tooltips must float above all content including modals.',
+    layers: [
+      { id: 'bg', name: 'PAGE', color: '#1a1f3a', borderColor: '#2a3060', correctZ: 1, currentZ: 1 },
+      { id: 'modal', name: 'MODAL', color: 'rgba(99,66,241,0.7)', borderColor: '#8b5cf6', correctZ: 10, currentZ: 10 },
+      { id: 'tooltip', name: 'TOOLTIP', color: 'rgba(79,209,197,0.8)', borderColor: '#4fd1c5', correctZ: 50, currentZ: 5 },
+    ],
+  },
+  {
+    id: 3,
+    title: 'Navigation Layer',
+    description: 'Sticky nav must stay above content but below modals.',
+    layers: [
+      { id: 'bg', name: 'CONTENT', color: '#1a1f3a', borderColor: '#2a3060', correctZ: 1, currentZ: 1 },
+      { id: 'nav', name: 'STICKY NAV', color: 'rgba(59,130,246,0.8)', borderColor: '#3b82f6', correctZ: 100, currentZ: 50 },
+      { id: 'modal', name: 'MODAL', color: 'rgba(99,66,241,0.7)', borderColor: '#8b5cf6', correctZ: 200, currentZ: 100 },
+    ],
+  },
+  {
+    id: 4,
+    title: 'Dropdown Trap',
+    description: 'Dropdown menus are often trapped behind other elements. Fix the stack.',
+    layers: [
+      { id: 'bg', name: 'PAGE BG', color: '#1a1f3a', borderColor: '#2a3060', correctZ: 0, currentZ: 5 },
+      { id: 'card', name: 'CARD', color: 'rgba(30,41,59,0.9)', borderColor: '#475569', correctZ: 1, currentZ: 1 },
+      { id: 'dropdown', name: 'DROPDOWN', color: 'rgba(245,158,11,0.8)', borderColor: '#f59e0b', correctZ: 10, currentZ: 0 },
+    ],
+  },
+  {
+    id: 5,
+    title: 'Toast Notification',
+    description: 'Toasts must appear above everything - even modals.',
+    layers: [
+      { id: 'bg', name: 'PAGE', color: '#1a1f3a', borderColor: '#2a3060', correctZ: 1, currentZ: 1 },
+      { id: 'modal', name: 'MODAL', color: 'rgba(99,66,241,0.7)', borderColor: '#8b5cf6', correctZ: 100, currentZ: 100 },
+      { id: 'overlay', name: 'OVERLAY', color: 'rgba(0,0,0,0.5)', borderColor: '#374151', correctZ: 99, currentZ: 200 },
+      { id: 'toast', name: 'TOAST', color: 'rgba(74,222,128,0.9)', borderColor: '#4ade80', correctZ: 9999, currentZ: 50 },
+    ],
+  },
+  {
+    id: 6,
+    title: 'Popover Stack',
+    description: 'Popover must sit above its trigger card.',
+    layers: [
+      { id: 'bg', name: 'BACKGROUND', color: '#1a1f3a', borderColor: '#2a3060', correctZ: 0, currentZ: 0 },
+      { id: 'card', name: 'TRIGGER CARD', color: 'rgba(30,41,59,0.9)', borderColor: '#475569', correctZ: 1, currentZ: 10 },
+      { id: 'popover', name: 'POPOVER', color: 'rgba(239,68,68,0.8)', borderColor: '#ef4444', correctZ: 50, currentZ: 1 },
+    ],
+  },
+  {
+    id: 7,
+    title: 'Sticky Header + Sidebar',
+    description: 'Both nav and sidebar must layer correctly.',
+    layers: [
+      { id: 'bg', name: 'CONTENT', color: '#1a1f3a', borderColor: '#2a3060', correctZ: 0, currentZ: 0 },
+      { id: 'sidebar', name: 'SIDEBAR', color: 'rgba(59,130,246,0.7)', borderColor: '#3b82f6', correctZ: 10, currentZ: 20 },
+      { id: 'header', name: 'HEADER', color: 'rgba(99,66,241,0.7)', borderColor: '#8b5cf6', correctZ: 20, currentZ: 10 },
+    ],
+  },
+  {
+    id: 8,
+    title: 'Loading Overlay',
+    description: 'Loading screen must cover everything.',
+    layers: [
+      { id: 'bg', name: 'APP', color: '#1a1f3a', borderColor: '#2a3060', correctZ: 1, currentZ: 1 },
+      { id: 'modal', name: 'MODAL', color: 'rgba(99,66,241,0.7)', borderColor: '#8b5cf6', correctZ: 100, currentZ: 100 },
+      { id: 'loader', name: 'LOADER', color: 'rgba(15,15,25,0.95)', borderColor: '#6366f1', correctZ: 9000, currentZ: 5 },
+    ],
+  },
+  {
+    id: 9,
+    title: 'Context Menu',
+    description: 'Right-click context menu must float above all content.',
+    layers: [
+      { id: 'bg', name: 'PAGE', color: '#1a1f3a', borderColor: '#2a3060', correctZ: 0, currentZ: 0 },
+      { id: 'card', name: 'CONTENT CARD', color: 'rgba(30,41,59,0.9)', borderColor: '#475569', correctZ: 1, currentZ: 5 },
+      { id: 'nav', name: 'STICKY NAV', color: 'rgba(59,130,246,0.7)', borderColor: '#3b82f6', correctZ: 100, currentZ: 100 },
+      { id: 'ctx', name: 'CONTEXT MENU', color: 'rgba(245,158,11,0.9)', borderColor: '#f59e0b', correctZ: 999, currentZ: 2 },
+    ],
+  },
+  {
+    id: 10,
+    title: 'Full Stack Chaos',
+    description: 'All layers are wrong. Fix the entire z-index stack.',
+    layers: [
+      { id: 'bg', name: 'BACKGROUND', color: '#1a1f3a', borderColor: '#2a3060', correctZ: 0, currentZ: 500 },
+      { id: 'content', name: 'CONTENT', color: 'rgba(30,41,59,0.9)', borderColor: '#475569', correctZ: 1, currentZ: 0 },
+      { id: 'nav', name: 'NAV', color: 'rgba(59,130,246,0.7)', borderColor: '#3b82f6', correctZ: 100, currentZ: 1 },
+      { id: 'modal', name: 'MODAL', color: 'rgba(99,66,241,0.7)', borderColor: '#8b5cf6', correctZ: 200, currentZ: 100 },
+      { id: 'toast', name: 'TOAST', color: 'rgba(74,222,128,0.9)', borderColor: '#4ade80', correctZ: 9999, currentZ: 200 },
+    ],
+  },
+];
 
-  // Z-Index Layer Control states. 5 available layers. 
-  // Levels map to unlocking layers that must be stacked correctly.
-  const [zIndexes, setZIndexes] = useState({ 
-     bg: 10, 
-     canvas: 20, 
-     modal: 5, // Initially wrong
-     overlay: 0, // Initially wrong
-     popup: 2 // Initially wrong
-  });
+export default function ZIndexLayering() {
+  const navigate = useNavigate();
 
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const lastX = useRef(0);
+  const lastY = useRef(0);
+  const rotX = useRef(-20);
+  const rotY = useRef(30);
+
+  const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
+  const [layerValues, setLayerValues] = useState<Record<string, number>>({});
   const [score, setScore] = useState(0);
-  const [levelTransition, setLevelTransition] = useState(false);
+  const [checked, setChecked] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [showHint, setShowHint] = useState(false);
 
-  const activeLayers = currentLevel === 1 
-      ? ['bg', 'modal'] 
-      : currentLevel === 2 
-      ? ['bg', 'modal', 'popup'] 
-      : ['bg', 'canvas', 'modal', 'overlay', 'popup'];
-
-  useEffect(() => {
-     if (phase !== 'DURING') return;
-     setLevelTransition(true);
-     setTimeout(() => setLevelTransition(false), 2000);
-
-     // Scramble
-     setZIndexes({ bg: 10, canvas: 15, modal: 2, overlay: 0, popup: 5 });
-  }, [currentLevel, phase]);
-
-  useEffect(() => {
-      if (levelTransition || phase !== 'DURING') return;
-      // Objective: BG < CANVAS < OVERLAY < MODAL < POPUP
-      // For current level logic
-      let maxScore = 0;
-      let currentScore = 0;
-
-      if (currentLevel === 1) {
-          maxScore = 1;
-          if (zIndexes.modal > zIndexes.bg) currentScore++;
-      } else if (currentLevel === 2) {
-          maxScore = 2;
-          if (zIndexes.modal > zIndexes.bg) currentScore++;
-          if (zIndexes.popup > zIndexes.modal) currentScore++;
-      } else {
-          maxScore = 4;
-          if (zIndexes.canvas > zIndexes.bg) currentScore++;
-          if (zIndexes.overlay > zIndexes.canvas) currentScore++;
-          if (zIndexes.modal > zIndexes.overlay) currentScore++;
-          if (zIndexes.popup > zIndexes.modal) currentScore++;
-      }
-
-      const percentage = (currentScore / maxScore) * 100;
-      setScore(percentage);
-      
-      // Delay advance to let the rotation effect settle visually
-      if (percentage === 100) {
-         setTimeout(advanceLevel, 1500);
-      }
-  }, [zIndexes, currentLevel, levelTransition, advanceLevel, phase]);
-
-  const handlePointerDown = () => setIsDragging(true);
-  const handlePointerUp = () => setIsDragging(false);
-  const handlePointerMove = (e: React.PointerEvent) => {
-      if (!isDragging || levelTransition || phase !== 'DURING') return;
-      setRotationZ(prev => prev - e.movementX * 0.5);
-      setRotationX(prev => Math.max(0, Math.min(90, prev - e.movementY * 0.5)));
+  const applyRotation = () => {
+    if (containerRef.current) {
+      containerRef.current.style.transform = `rotateX(${rotX.current}deg) rotateY(${rotY.current}deg)`;
+    }
   };
 
-  const handleZChange = (key: string, val: number) => {
-      setZIndexes(p => ({...p, [key]: val}));
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      const dx = e.clientX - lastX.current;
+      const dy = e.clientY - lastY.current;
+      rotY.current += dx * 0.5;
+      rotX.current -= dy * 0.5;
+      rotX.current = Math.max(-60, Math.min(60, rotX.current));
+      lastX.current = e.clientX;
+      lastY.current = e.clientY;
+      applyRotation();
+    };
 
-      // Basic frustration trigger: if someone sets a negative UI layer depth
-      if (val < 0) recordMistake();
+    const onMouseUp = () => {
+      isDragging.current = false;
+      if (wrapperRef.current) {
+        wrapperRef.current.style.cursor = 'grab';
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isDragging.current) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      if (!t) return;
+      const dx = t.clientX - lastX.current;
+      const dy = t.clientY - lastY.current;
+      rotY.current += dx * 0.5;
+      rotX.current -= dy * 0.5;
+      rotX.current = Math.max(-60, Math.min(60, rotX.current));
+      lastX.current = t.clientX;
+      lastY.current = t.clientY;
+      applyRotation();
+    };
+
+    const onTouchEnd = () => {
+      isDragging.current = false;
+      if (wrapperRef.current) {
+        wrapperRef.current.style.cursor = 'grab';
+      }
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+    };
+  }, []);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    isDragging.current = true;
+    lastX.current = e.clientX;
+    lastY.current = e.clientY;
+    if (wrapperRef.current) {
+      wrapperRef.current.style.cursor = 'grabbing';
+    }
   };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    if (!t) return;
+    isDragging.current = true;
+    lastX.current = t.clientX;
+    lastY.current = t.clientY;
+    if (wrapperRef.current) {
+      wrapperRef.current.style.cursor = 'grabbing';
+    }
+  };
+
+  useEffect(() => {
+    applyRotation();
+  }, []);
+
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    challenges[currentChallengeIndex].layers.forEach((l) => {
+      initial[l.id] = l.currentZ;
+    });
+    setLayerValues(initial);
+    setChecked(false);
+    setIsCorrect(false);
+    setShowHint(false);
+  }, [currentChallengeIndex]);
+
+  const checkSolution = () => {
+    if (checked && isCorrect) return;
+
+    const challenge = challenges[currentChallengeIndex];
+    const allCorrect = challenge.layers.every((layer) => layerValues[layer.id] === layer.correctZ);
+
+    setChecked(true);
+    setIsCorrect(allCorrect);
+
+    if (allCorrect) {
+      setScore((prev) => prev + 1);
+      setTimeout(() => {
+        if (currentChallengeIndex < challenges.length - 1) {
+          setCurrentChallengeIndex((prev) => prev + 1);
+        }
+      }, 1500);
+    }
+  };
+
+  const challenge = challenges[currentChallengeIndex];
+  const integrity = Math.round((score / challenges.length) * 100);
+  const hintOrder = challenge.layers
+    .slice()
+    .sort((a, b) => a.correctZ - b.correctZ)
+    .map((l) => l.name)
+    .join(' -> ');
+
+  const displayLayers = challenge.layers
+    .slice()
+    .sort((a, b) => (layerValues[a.id] ?? a.currentZ) - (layerValues[b.id] ?? b.currentZ));
 
   return (
-    <div 
-       className="flex-1 w-full bg-[#020617] text-white overflow-hidden flex flex-col items-center justify-center relative touch-none cursor-grab active:cursor-grabbing select-none"
-       onPointerDown={handlePointerDown}
-       onPointerMove={handlePointerMove}
-       onPointerUp={handlePointerUp}
-       onPointerLeave={handlePointerUp}
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      style={{ display: 'flex', height: '100vh', width: '100vw', background: '#05060C', overflow: 'hidden' }}
     >
-       <AnimatePresence>
-         {levelTransition && (
-           <motion.div initial={{ opacity: 0, scale: 2 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[60] flex items-center justify-center pointer-events-none text-9xl font-black text-white/5">
-             LEVEL {currentLevel}
-           </motion.div>
-         )}
-       </AnimatePresence>
+      <div
+        style={{
+          width: '380px',
+          flexShrink: 0,
+          background: '#0E1228',
+          borderRight: '1px solid #1E2845',
+          padding: '32px 24px',
+          overflowY: 'auto',
+          zIndex: 10,
+          position: 'relative',
+        }}
+      >
+        <button
+          onClick={() => navigate('/dashboard')}
+          style={{
+            border: '1px solid #2A3261',
+            background: '#111733',
+            color: '#C7CEFF',
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '12px',
+            letterSpacing: '1px',
+            textTransform: 'uppercase',
+            padding: '8px 12px',
+            cursor: 'pointer',
+            marginBottom: '20px',
+          }}
+        >
+          {'<- DASHBOARD'}
+        </button>
 
-       <header className="absolute top-12 left-12 max-w-lg z-50 pointer-events-none">
-          <div className="bg-black/50 backdrop-blur-md rounded-2xl border border-white/5 p-8 pointer-events-auto">
-             <div className="flex items-center gap-2 text-fuchsia-400 mb-2">
-                <Box size={20} /> <span className="text-xs font-black uppercase tracking-widest">Level {currentLevel}</span>
-             </div>
-             <h1 className="text-3xl font-black mb-1 tracking-tight">Dimensional Layering</h1>
-             <p className="text-slate-400 text-sm mb-6">Interfaces exist in physical 3D space. Drag the canvas to rotate the camera, then fix the depth collisions below to establish absolute Z-order.</p>
-             
-             <div className="flex flex-wrap bg-slate-900 border border-white/10 rounded-xl overflow-hidden shadow-2xl">
-                 {activeLayers.map((layer, i) => (
-                    <div key={layer} className={`flex-1 min-w-[30%] p-4 ${i !== activeLayers.length - 1 ? 'border-r border-white/10 border-b relative' : ''}`}>
-                       <span className="block text-[10px] uppercase font-bold text-slate-500 mb-1">{layer}</span>
-                       <input 
-                         type="number" 
-                         value={zIndexes[layer as keyof typeof zIndexes]} 
-                         onChange={e => handleZChange(layer, parseInt(e.target.value) || 0)} 
-                         disabled={levelTransition || phase !== 'DURING'}
-                         className="w-full bg-slate-950 font-mono font-bold text-lg text-white outline-none rounded p-1 text-center" 
-                       />
-                    </div>
-                 ))}
-             </div>
-          </div>
-       </header>
+        <div
+          style={{
+            display: 'inline-block',
+            border: '1px solid #2A3261',
+            color: '#9AA3E8',
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '11px',
+            letterSpacing: '2px',
+            padding: '6px 10px',
+            marginBottom: '14px',
+          }}
+        >
+          LEVEL {currentChallengeIndex + 1}
+        </div>
 
-       {/* Subliminal Feedback */}
-       <div className="absolute top-12 right-12 bg-black/50 backdrop-blur-xl border border-white/10 p-6 rounded-2xl flex flex-col items-center pointer-events-none">
-           <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Architecture Integrity</span>
-           <span className={`text-5xl font-mono font-black drop-shadow-[0_0_15px_rgba(217,70,239,0.5)] ${score === 100 ? 'text-emerald-400' : 'text-fuchsia-400'}`}>{score}%</span>
-       </div>
+        <h1
+          style={{
+            margin: 0,
+            fontFamily: 'Fraunces, serif',
+            fontSize: '32px',
+            lineHeight: '1.1',
+            color: '#E8EBFF',
+            marginBottom: '10px',
+          }}
+        >
+          {challenge.title}
+        </h1>
 
-       {/* The Physical 3D Render Environment */}
-       <div className="relative w-full h-[80vh] flex items-center justify-center [perspective:1500px] z-10 pointer-events-auto">
-          <motion.div 
-             className="relative w-[500px] h-[500px] [transform-style:preserve-3d]"
-           style={{ pointerEvents: 'all', cursor: 'grab', position: 'relative', zIndex: 2 }}
-             animate={{ rotateX: rotationX, rotateZ: rotationZ }}
-             transition={{ type: "spring", stiffness: 100, damping: 20 }}
+        <p
+          style={{
+            margin: 0,
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '14px',
+            lineHeight: 1.5,
+            color: '#9FA8D8',
+            marginBottom: '20px',
+          }}
+        >
+          {challenge.description}
+        </p>
+
+        <button
+          onClick={() => setShowHint((prev) => !prev)}
+          style={{
+            border: '1px solid #2A3261',
+            background: '#111733',
+            color: '#C7CEFF',
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '12px',
+            letterSpacing: '1px',
+            textTransform: 'uppercase',
+            padding: '8px 12px',
+            cursor: 'pointer',
+            width: '100%',
+            marginBottom: '12px',
+          }}
+        >
+          SHOW HINT
+        </button>
+
+        {showHint && (
+          <div
+            style={{
+              border: '1px solid #2A3261',
+              background: '#0B1024',
+              color: '#9FA8D8',
+              fontFamily: 'Inter, sans-serif',
+              fontSize: '13px',
+              lineHeight: 1.5,
+              padding: '10px 12px',
+              marginBottom: '16px',
+            }}
           >
-             {/* Base Background Grid Always present */}
-             <div 
-                 className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm border-2 border-slate-700 rounded-3xl [transform:translateZ(0px)] transition-all duration-700 flex items-center justify-center overflow-hidden"
-                 style={{ zIndex: zIndexes.bg }}
-             >
-                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:2rem_2rem]" />
-                 <span className="font-black text-slate-700 text-6xl opacity-50 tracking-widest">DOM</span>
-             </div>
+            Correct order (bottom to top): {hintOrder}
+          </div>
+        )}
 
-             {/* Canvas Application (Level 3) */}
-             <AnimatePresence>
-               {activeLayers.includes('canvas') && (
-                 <motion.div 
-                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                     className="absolute inset-8 bg-blue-900/30 backdrop-blur-sm border-2 border-dashed border-blue-500 rounded-2xl [transform:translateZ(50px)] transition-all duration-700 flex p-6 shadow-xl"
-                     style={{ zIndex: zIndexes.canvas }}
-                 >
-                    <span className="font-bold text-blue-300/50 uppercase tracking-widest text-xs">Canvas App Render</span>
-                 </motion.div>
-               )}
-             </AnimatePresence>
+        <div style={{ marginBottom: '20px' }}>
+          {challenge.layers.map((layer) => (
+            <div key={layer.id} style={{ marginBottom: '10px' }}>
+              <label
+                style={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: '10px',
+                  color: '#7E86C8',
+                  textTransform: 'uppercase',
+                  letterSpacing: '2px',
+                  display: 'block',
+                  marginBottom: '6px',
+                }}
+              >
+                {layer.name}
+              </label>
+              <input
+                type="number"
+                value={layerValues[layer.id] ?? layer.currentZ}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10) || 0;
+                  setLayerValues((prev) => ({ ...prev, [layer.id]: val }));
+                }}
+                style={{
+                  background: '#111733',
+                  border: `1px solid ${
+                    checked && layerValues[layer.id] === layer.correctZ ? '#4ADE80' : checked ? '#EF4444' : '#2A3261'
+                  }`,
+                  color: 'white',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: '18px',
+                  padding: '8px 12px',
+                  width: '100%',
+                  outline: 'none',
+                }}
+              />
+            </div>
+          ))}
+        </div>
 
-             {/* Overlay scrim (Level 3) */}
-             <AnimatePresence>
-               {activeLayers.includes('overlay') && (
-                 <motion.div 
-                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                     className="absolute -inset-10 bg-black/60 shadow-2xl [transform:translateZ(100px)] transition-all duration-700"
-                     style={{ zIndex: zIndexes.overlay }}
-                 />
-               )}
-             </AnimatePresence>
+        <button
+          onClick={checkSolution}
+          style={{
+            width: '100%',
+            background: '#6366F1',
+            color: 'white',
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '12px',
+            textTransform: 'uppercase',
+            letterSpacing: '2px',
+            border: 'none',
+            borderRadius: 0,
+            padding: '12px',
+            cursor: 'pointer',
+            marginBottom: '12px',
+          }}
+        >
+          CHECK STACK
+        </button>
 
-             {/* The Modal Layer (Level 1+) */}
-             <div 
-                 className="absolute inset-16 bg-fuchsia-900/60 backdrop-blur-2xl border-4 border-fuchsia-500 rounded-2xl [transform:translateZ(150px)] transition-all duration-700 flex flex-col p-8 items-center justify-center shadow-[0_0_80px_rgba(217,70,239,0.4)]"
-                 style={{ zIndex: zIndexes.modal }}
-             >
-                 <span className="font-bold text-fuchsia-200 tracking-widest uppercase mb-6 text-xl">Core Modal</span>
-                 <div className="w-full h-8 bg-fuchsia-500/20 rounded-xl mb-3 border border-fuchsia-500/30" />
-                 <div className="w-full flex gap-3"><div className="w-1/2 h-8 bg-fuchsia-500/20 rounded-xl" /><div className="w-1/2 h-8 bg-fuchsia-500/50 rounded-xl" /></div>
-             </div>
+        {checked && isCorrect && (
+          <div
+            style={{
+              color: '#4ADE80',
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: '13px',
+              letterSpacing: '1px',
+              marginBottom: '14px',
+            }}
+          >
+            ✓ CORRECT
+          </div>
+        )}
 
-             {/* The Context Popup (Level 2+) */}
-             <AnimatePresence>
-                {activeLayers.includes('popup') && (
-                  <motion.div 
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="absolute -top-12 -right-12 w-64 h-32 bg-amber-900/90 backdrop-blur-3xl border-4 border-amber-500 rounded-2xl [transform:translateZ(250px)] transition-all duration-700 flex flex-col p-6 items-center justify-center shadow-[0_0_60px_rgba(245,158,11,0.6)]"
-                      style={{ zIndex: zIndexes.popup }}
+        {checked && !isCorrect && (
+          <div
+            style={{
+              color: '#EF4444',
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: '13px',
+              letterSpacing: '1px',
+              marginBottom: '14px',
+            }}
+          >
+            ✗ Try again
+          </div>
+        )}
+
+        <div style={{ marginTop: '12px', paddingBottom: '78px' }}>
+          <div
+            style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: '11px',
+              color: '#7E86C8',
+              letterSpacing: '2px',
+              textTransform: 'uppercase',
+            }}
+          >
+            Architecture Integrity
+          </div>
+          <div style={{ fontFamily: 'Fraunces, serif', fontSize: '48px', color: '#6366F1', lineHeight: 1 }}>{integrity}%</div>
+        </div>
+
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            bottom: '18px',
+            transform: 'translateX(-50%)',
+            width: '30px',
+            height: '30px',
+            borderRadius: '999px',
+            background: 'radial-gradient(circle at 35% 35%, #a5b4fc, #6366f1 48%, #312e81 100%)',
+            boxShadow: '0 0 18px rgba(99,102,241,0.55)',
+            pointerEvents: 'none',
+          }}
+          aria-hidden="true"
+        />
+      </div>
+
+      <div
+        ref={wrapperRef}
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
+        style={{
+          flex: 1,
+          position: 'relative',
+          cursor: 'grab',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          overflow: 'hidden',
+          pointerEvents: 'auto',
+          touchAction: 'none',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: 24,
+            right: 24,
+            zIndex: 5,
+            pointerEvents: 'none',
+            background: '#0E1228',
+            border: '1px solid #1E2845',
+            padding: '16px 24px',
+            textAlign: 'right',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: '10px',
+              color: '#7E86C8',
+              letterSpacing: '2px',
+              textTransform: 'uppercase',
+            }}
+          >
+            ARCHITECTURE INTEGRITY
+          </div>
+          <div style={{ fontFamily: 'Fraunces, serif', fontSize: '48px', color: '#6366F1', lineHeight: 1 }}>{integrity}%</div>
+        </div>
+
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            perspective: '1200px',
+            perspectiveOrigin: '50% 50%',
+            pointerEvents: 'none',
+          }}
+        >
+          <div
+            ref={containerRef}
+            style={{
+              width: '500px',
+              height: '300px',
+              position: 'relative',
+              transformStyle: 'preserve-3d',
+              transform: 'rotateX(-20deg) rotateY(30deg)',
+              pointerEvents: 'none',
+            }}
+          >
+            {displayLayers.map((layer) => {
+              const depth = (layerValues[layer.id] ?? layer.currentZ) * 0.6;
+              return (
+                <div
+                  key={layer.id}
+                  style={{
+                    position: 'absolute',
+                    width: '440px',
+                    height: '260px',
+                    left: '30px',
+                    top: '20px',
+                    transformStyle: 'preserve-3d',
+                    transform: `translateZ(${depth}px)`,
+                    background: layer.color,
+                    border: `2px solid ${layer.borderColor}`,
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    pointerEvents: 'none',
+                    boxShadow: `0 0 30px ${layer.borderColor}44`,
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: '12px',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '8px',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontSize: '14px',
+                      color: 'white',
+                      letterSpacing: '3px',
+                      opacity: 0.9,
+                    }}
                   >
-                      <span className="font-black text-amber-200 tracking-widest uppercase mb-2">Toast Event</span>
-                      <p className="text-xs text-amber-500/80 text-center font-bold">Absolute top depth required.</p>
-                  </motion.div>
-                )}
-             </AnimatePresence>
+                    {layer.name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-          </motion.div>
-       </div>
-    </div>
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 32,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '11px',
+            color: '#4A5280',
+            letterSpacing: '3px',
+            textTransform: 'uppercase',
+            pointerEvents: 'none',
+          }}
+        >
+          ↔ DRAG TO ROTATE
+        </div>
+      </div>
+    </motion.div>
   );
 }

@@ -45,7 +45,7 @@ export default function TypoScale() {
     setMentorFeedback({ issues, suggestions });
 
     setIsLevelComplete(currentScore >= 95);
-  }, [scaleRatio, level]);
+  }, [scaleRatio, level.target]);
 
   const handleNextLevel = () => {
     if (currentLevel < levels.length - 1) {
@@ -63,10 +63,20 @@ export default function TypoScale() {
     }
   };
 
+  const handleBackToDashboard = () => {
+    navigate('/dashboard', { replace: true });
+  };
+
   const baseSize = 1; // 1rem
 
   return (
     <div className="min-h-screen w-full flex flex-col pt-24 pb-20 px-4 md:px-12 relative overflow-hidden">
+      <button
+        onClick={handleBackToDashboard}
+        className="fixed left-5 top-5 z-[80] inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/55 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white/85 backdrop-blur-md transition-colors hover:bg-black/75"
+      >
+        Back to Dashboard
+      </button>
       <div 
         className="absolute top-1/2 left-0 w-[600px] h-[600px] blur-[150px] rounded-full opacity-20 pointer-events-none transition-colors duration-1000"
         style={{ backgroundColor: isLevelComplete ? '#10b981' : '#f59e0b' }}

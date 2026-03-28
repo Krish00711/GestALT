@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLearning } from '@/engine/LearningContext';
 import { learningContentData } from '@/data/learningContent';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, CheckCircle2, ChevronRight, Target } from 'lucide-react';
+import { BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Target } from 'lucide-react';
 
 interface LearningHarnessProps {
   moduleId: string;
@@ -22,11 +22,25 @@ export default function LearningHarness({ moduleId, maxLevels = 3, children }: L
   const { activeModuleId, initializeModule, phase, setPhase } = useLearning();
   const navigate = useNavigate();
 
+  const exitToDashboard = useCallback(() => {
+    setPhase('BEFORE');
+    navigate('/dashboard', { replace: true });
+  }, [navigate, setPhase]);
+
   useEffect(() => {
     if (activeModuleId !== moduleId) {
       initializeModule(moduleId, maxLevels);
     }
   }, [moduleId, activeModuleId, maxLevels, initializeModule]);
+
+  useEffect(() => {
+    const handleBrowserBack = () => {
+      exitToDashboard();
+    };
+
+    window.addEventListener('popstate', handleBrowserBack);
+    return () => window.removeEventListener('popstate', handleBrowserBack);
+  }, [exitToDashboard]);
 
   const content = learningContentData[moduleId];
   if (!content) return <>{children}</>;
@@ -40,11 +54,20 @@ export default function LearningHarness({ moduleId, maxLevels = 3, children }: L
       if (!user.completedLessons.includes(moduleId)) user.completedLessons.push(moduleId);
       localStorage.setItem('gestalt_user', JSON.stringify(user));
     } catch(e) {}
-    navigate('/dashboard');
+    exitToDashboard();
   };
 
   return (
     <div className="relative w-full min-h-screen">
+      {phase === 'DURING' && (
+        <button
+          onClick={exitToDashboard}
+          className="fixed left-5 top-5 z-[110] inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/55 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white/85 backdrop-blur-md transition-colors hover:bg-black/75"
+        >
+          <ChevronLeft size={14} />
+          Back to Dashboard
+        </button>
+      )}
       
       {/* PHASE 2: The Actual Game plays in the background/foreground depending on state */}
       <div className={`transition-all duration-1000 flex flex-col min-h-screen ${phase !== 'DURING' ? 'blur-xl grayscale opacity-30 pointer-events-none' : ''}`}>
